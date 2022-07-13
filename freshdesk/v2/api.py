@@ -305,6 +305,30 @@ class ContactAPI(object):
 
         return [Contact(**c) for c in contacts]
 
+    def search_contacts(self, query, **kwargs):
+        url = "/search/contacts?"
+        page = kwargs.get("page", 1)
+        per_page = 30
+
+        contacts = []
+        total = 0
+
+        # Skip pagination by looping over each page and adding tickets if 'page' key is not in kwargs.
+        # else return the requested page and break the loop
+        while True:
+            this_page = self._api._get(url + 'page={}&query="{}"'.format(page, query), kwargs)
+            contacts += this_page['results']
+
+            if total == 0:
+                total = this_page['total']
+
+            if len(this_page) < per_page or page == 10 or "page" in kwargs:
+                break
+
+            page += 1
+
+        return { 'contacts': [Contact(**c) for c in contacts], 'total': total }
+
     def create_contact(self, *args, **kwargs):
         """Creates a contact"""
         url = "contacts"
@@ -328,8 +352,9 @@ class ContactAPI(object):
         url = "contacts/%d/restore" % contact_id
         self._api._put(url)
 
-    def permanently_delete_contact(self, contact_id, force=True):
-        url = "contacts/%d/hard_delete?force=%r" % (contact_id, force)
+    def permanently_delete_contact(self, contact_id, force='true'):
+        url = "contacts/%d/hard_delete?force=%s" % (contact_id, force)
+
         self._api._delete(url)
 
     def make_agent(self, contact_id, **kwargs):
